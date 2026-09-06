@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="description" content="Cyber-Dither — Real-time audio-reactive 3D visualizer powered by Web Audio API, Three.js shaders, GSAP, and AI audio classification.">
+    <title>CYBER-DITHER // Audio-Reactive 3D Visualizer</title>
+    
+    <!-- Design System Styles -->
+    <link rel="stylesheet" href="./css/index.css">
+
+    <!-- ES Module Importmap for Three.js & Post-Processing Addons -->
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+            "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+        }
+    }
+    </script>
+
+    <!-- GSAP for Smooth Motion and Theme Transitions -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+
+    <!-- Master Application Entry -->
+    <script type="module" src="./js/main.js"></script>
+</head>
+<body>
+    <!-- 3D WebGL Canvas -->
+    <canvas id="three-canvas"></canvas>
+
+    <!-- Hidden Audio File Input -->
+    <input type="file" id="file-input" accept="audio/*,.mp3,.wav,.ogg,.flac,.aac,.m4a,.webm" multiple style="display: none;">
+
+    <!-- Holographic Glassmorphic HUD -->
+    <div id="hud-container">
+        <!-- Top Bar -->
+        <header class="top-bar glass-panel">
+            <div class="brand-section">
+                <div class="brand-logo">
+                    <span class="logo-glyph">◈</span> CYBER-DITHER
+                </div>
+                <div class="status-badges">
+                    <span class="hud-pill active" id="visual-mode-label">Beat Storm</span>
+                    <span class="hud-pill" id="theme-label">Neon Cyber</span>
+                </div>
+            </div>
+
+            <nav class="top-actions">
+                <button class="pill-btn" id="btn-library" title="Track & Genre Library">🎵 Library</button>
+                <button class="pill-btn" id="btn-visual-mode" title="Change Visual Mode (1-6)">⚡ Modes</button>
+                <button class="pill-btn" id="btn-theme" title="Color Theme & AI Switcher">🎨 Theme</button>
+                <button class="icon-btn" id="btn-camera-lock" title="Lock/Unlock Camera Orbit (L)">🔒</button>
+                <button class="icon-btn" id="btn-camera-reset" title="Reset Camera Position (R)">🎯</button>
+                <button class="icon-btn" id="btn-voice" title="Voice Control Recognition">🎙️</button>
+                <button class="icon-btn" id="btn-settings" title="Visual Mixer & Performance">⚙️</button>
+                <button class="icon-btn" id="btn-shortcuts" title="Keyboard Shortcuts Reference">⌨️</button>
+                <button class="icon-btn" id="btn-hud-toggle" title="Toggle HUD Cinema Mode (H)">👁️</button>
+                <button class="icon-btn" id="btn-fullscreen" title="Toggle Fullscreen (F)">⛶</button>
+                <div class="fps-counter" id="fps-counter">60 FPS</div>
+            </nav>
+        </header>
+
+        <!-- Left Holographic Meters -->
+        <aside class="side-meters-left glass-panel" aria-label="Audio Energy Meters">
+            <div class="beat-pulse-orb" id="beat-indicator" title="Beat Pulse"></div>
+            <div class="meters-column">
+                <div class="meter-track" title="Bass Band (20-250Hz)">
+                    <div class="meter-groove">
+                        <div class="meter-fill meter-bass" id="bass-meter"></div>
+                    </div>
+                    <span class="meter-label">BASS</span>
+                </div>
+                <div class="meter-track" title="Mids Band (250-2000Hz)">
+                    <div class="meter-groove">
+                        <div class="meter-fill meter-mids" id="mids-meter"></div>
+                    </div>
+                    <span class="meter-label">MIDS</span>
+                </div>
+                <div class="meter-track" title="Highs Band (2k-16kHz)">
+                    <div class="meter-groove">
+                        <div class="meter-fill meter-highs" id="highs-meter"></div>
+                    </div>
+                    <span class="meter-label">HIGH</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Bottom Deck -->
+        <footer class="bottom-deck glass-panel">
+            <!-- Timeline & Scrubber -->
+            <div class="scrubber-row">
+                <span class="time-label" id="time-elapsed">0:00</span>
+                <div class="progress-groove" id="progress-bar" title="Click to seek">
+                    <div class="progress-fill" id="progress-fill"></div>
+                </div>
+                <span class="time-label time-remaining" id="time-remaining">-0:00</span>
+            </div>
+
+            <!-- Main Transport Row -->
+            <div class="deck-main-row">
+                <!-- Track Info -->
+                <div class="track-info-area">
+                    <h1 class="track-title" id="track-title">Neon Highway</h1>
+                    <div class="track-artist" id="track-artist">Cyber-Dither Synth • Synthwave</div>
+                    <span class="play-status paused" id="play-status">PAUSED</span>
+                </div>
+
+                <!-- Central Transport Controls -->
+                <div class="transport-controls">
+                    <button class="icon-btn" id="btn-prev" title="Previous Track (Left Arrow)">⏮</button>
+                    <button class="btn-play-hero" id="btn-play" title="Play/Pause (Space)">▶</button>
+                    <button class="icon-btn" id="btn-next" title="Next Track (Right Arrow)">⏭</button>
+
+                    <div class="volume-cluster">
+                        <button class="icon-btn" id="btn-mute" title="Toggle Mute (M)">🔊</button>
+                        <input type="range" class="volume-slider" id="volume-slider" min="0" max="1" step="0.01" value="0.75" title="Volume (Up/Down Arrows)">
+                    </div>
+                </div>
+
+                <!-- Warp Speed Control -->
+                <div class="warp-cluster">
+                    <button class="warp-btn" id="btn-warp" title="Warp Speed: Toggle or Hold W to Boost">
+                        <span>⚡ WARP</span>
+                        <span class="warp-level-tag" id="warp-label">OFF</span>
+                    </button>
+                </div>
+
+                <!-- Mini Visualizers -->
+                <div class="mini-visualizers">
+                    <div class="vis-box">
+                        <canvas class="vis-canvas" id="spectrum-canvas" width="140" height="38"></canvas>
+                        <span class="vis-title">SPECTRUM</span>
+                    </div>
+                    <div class="vis-box">
+                        <canvas class="vis-canvas" id="waveform-canvas" width="140" height="38"></canvas>
+                        <span class="vis-title">OSCILLOSCOPE</span>
+                    </div>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Slide-Out Panels -->
+    <div class="panel glass-panel" id="visual-mode-panel"></div>
+    <div class="panel glass-panel" id="theme-panel"></div>
+    <div class="panel glass-panel" id="library-panel"></div>
+    <div class="panel glass-panel" id="settings-panel"></div>
+
+    <!-- Welcome / Splash Screen -->
+    <div id="welcome-screen">
+        <div class="welcome-card glass-panel">
+            <div class="welcome-logo">◈ CYBER-DITHER ◈</div>
+            <p class="welcome-tagline">Real-Time Audio-Reactive 3D Cyberpunk Visualizer</p>
+
+            <div class="welcome-features">
+                <span class="welcome-pill">Web Audio API</span>
+                <span class="welcome-pill">Three.js Shaders</span>
+                <span class="welcome-pill">Bayer Dithering</span>
+                <span class="welcome-pill">AI Auto-Theme</span>
+                <span class="welcome-pill">Warp Speed System</span>
+            </div>
+
+            <button class="btn-enter-experience" id="btn-enter">INITIALIZE SYSTEM</button>
+            <p class="welcome-tip">Tip: Press SPACE for play/pause, W for Warp Speed, 1-6 for Visual Modes.</p>
+        </div>
+    </div>
+
+    <!-- Drag & Drop Audio Upload Overlay -->
+    <div id="drop-overlay">
+        <div class="drop-icon">📂</div>
+        <div class="drop-title">DROP AUDIO FILES HERE</div>
+        <div class="drop-subtitle">Supports MP3, WAV, OGG, FLAC, AAC, M4A, WebM</div>
+    </div>
+
+    <!-- Keyboard Shortcuts Reference Modal -->
+    <div class="modal-overlay" id="shortcuts-modal">
+        <div class="modal-card glass-panel">
+            <div class="panel-header">
+                <h3 class="panel-title">Keyboard & Gesture Controls</h3>
+                <button class="panel-close" id="btn-close-shortcuts">✕</button>
+            </div>
+            <div class="shortcuts-table">
+                <div class="shortcut-row"><span>Play / Pause</span><span class="key-badge">SPACE</span></div>
+                <div class="shortcut-row"><span>Next Track / Prev Track</span><span class="key-badge">→ / ←</span></div>
+                <div class="shortcut-row"><span>Volume Up / Down</span><span class="key-badge">↑ / ↓</span></div>
+                <div class="shortcut-row"><span>Warp Speed (Toggle / Hold Boost)</span><span class="key-badge">W</span></div>
+                <div class="shortcut-row"><span>Visual Modes (1 to 6)</span><span class="key-badge">1 – 6</span></div>
+                <div class="shortcut-row"><span>Lock / Unlock Camera Orbit</span><span class="key-badge">L</span></div>
+                <div class="shortcut-row"><span>Reset Camera to Default</span><span class="key-badge">R</span></div>
+                <div class="shortcut-row"><span>Mute / Unmute</span><span class="key-badge">M</span></div>
+                <div class="shortcut-row"><span>Toggle Fullscreen</span><span class="key-badge">F</span></div>
+                <div class="shortcut-row"><span>Toggle HUD (Cinema Mode)</span><span class="key-badge">H</span></div>
+                <div class="shortcut-row"><span>Close Active Panel</span><span class="key-badge">ESC</span></div>
+                <div class="shortcut-row"><span>Touch (Mobile)</span><span class="key-badge">Drag Orbit / Pinch Zoom</span></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notifications Container -->
+    <div id="toast-container" aria-live="polite"></div>
+</body>
+</html>
